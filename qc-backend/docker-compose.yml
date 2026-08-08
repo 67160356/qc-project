@@ -1,0 +1,44 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: qc-line-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:-qc_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-qc_password}
+      POSTGRES_DB: ${DB_NAME:-qc_line}
+    ports:
+      - "5432:5432"
+    volumes:
+      - qc_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-qc_user} -d ${DB_NAME:-qc_line}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build: .
+    container_name: qc-line-api
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PORT: 4000
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_USER: ${DB_USER:-qc_user}
+      DB_PASSWORD: ${DB_PASSWORD:-qc_password}
+      DB_NAME: ${DB_NAME:-qc_line}
+      JWT_SECRET: ${JWT_SECRET:-change_this_secret_in_production}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+    ports:
+      - "4000:4000"
+    volumes:
+      - ./src:/usr/src/app/src
+
+volumes:
+  qc_db_data:
